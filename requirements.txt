@@ -1,0 +1,18 @@
+# Data Extraction & Scraping
+requests
+beautifulsoup4
+
+# Data Transformation & Analysis
+pandas
+numpy
+
+# Data Loading (Google Sheets & PostgreSQL)
+google-auth
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+psycopg2-binary
+
+# Testing & Quality Assurance
+pytest
+pytest-cov
