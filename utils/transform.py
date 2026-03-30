@@ -1,44 +1,69 @@
 ﻿import pandas as pd
+import numpy as np
+
 
 def clean_data(df):
-    if df.empty: return df
-    
-    try:
-        # 1. Hapus nilai null dan duplikat
-        df = df.dropna().drop_duplicates()
-
-        # 2. Filter Baris Invalid
-        # Buang "Unknown Product" dan "Price Unavailable"
-        df = df[df['Title'] != 'Unknown Product']
-        df = df[df['Price'] != 'Price Unavailable']
-        
-        # 3. Bersihkan Kolom Price
-        # Hanya ambil angka dan titik/koma (membuang simbol $)
-        df['Price'] = df['Price'].str.replace(r'[^\d.]', '', regex=True)
-        
-        # Pastikan kolom price tidak kosong setelah dibersihkan
-        df = df[df['Price'] != '']
-        
-        # Konversi ke float dan kalikan kurs Rp16.000
-        df['Price'] = df['Price'].astype(float) * 16000
-        
-        # 4. Rating (Menangani "Invalid Rating / 5" atau "Not Rated")
-        # Kita hanya ambil angka depannya saja
-        df['Rating'] = df['Rating'].str.extract(r'(\d+\.?\d*)').astype(float)
-        
-        # Hapus lagi jika ada Rating yang menjadi NaN karena teks "Not Rated"
-        df = df.dropna(subset=['Rating'])
-        
-        # 5. Transform Colors ("3 Colors" -> 3)
-        df['Colors'] = df['Colors'].str.extract(r'(\d+)').astype(int)
-        
-        # 6. Transform Size ("Size: L" -> "L")
-        df['Size'] = df['Size'].str.replace('Size: ', '')
-        
-        # 7. Transform Gender ("Gender: Men" -> "Men")
-        df['Gender'] = df['Gender'].str.replace('Gender: ', '')
-        
+    if df.empty:
         return df
+
+    try:
+        df = df.copy()
+
+        # 1. Drop duplicate dulu (lebih aman sebelum cleaning berat)
+        df = df.drop_duplicates()
+
+        # 2. Filter invalid rows
+        df = df[df['Title'] != 'Unknown Product']
+        df = df[df['Price'].notna()]
+        df = df[df['Price'] != 'Price Unavailable']
+
+        # =========================
+        # 3. CLEAN PRICE
+        # =========================
+        # Ambil angka (handle $1,200.50 juga)
+        df['Price'] = df['Price'].str.replace(r'[^\d.]', '', regex=True)
+
+        # Buang yang kosong
+        df = df[df['Price'] != '']
+
+        # Convert ke float → IDR
+        df['Price'] = df['Price'].astype(float) * 16000
+
+        # =========================
+        # 4. CLEAN RATING
+        # =========================
+        # Ambil angka rating
+        df['Rating'] = df['Rating'].str.extract(r'(\d+\.?\d*)')
+
+        # Convert ke float
+        df['Rating'] = pd.to_numeric(df['Rating'], errors='coerce')
+
+        # Drop invalid rating
+        df = df.dropna(subset=['Rating'])
+
+        # =========================
+        # 5. CLEAN COLORS
+        # =========================
+        df['Colors'] = df['Colors'].str.extract(r'(\d+)')
+        df['Colors'] = pd.to_numeric(df['Colors'], errors='coerce')
+
+        # =========================
+        # 6. CLEAN SIZE & GENDER
+        # =========================
+        # Sudah clean dari extract, tapi tetap safe
+        df['Size'] = df['Size'].astype(str).str.replace('Size: ', '', regex=False).str.strip()
+        df['Gender'] = df['Gender'].astype(str).str.replace('Gender: ', '', regex=False).str.strip()
+
+        # =========================
+        # 7. FINAL CLEANING
+        # =========================
+        df = df.dropna(subset=['Price', 'Colors'])
+
+        # Reset index biar rapi
+        df = df.reset_index(drop=True)
+
+        return df
+
     except Exception as e:
         print(f"Error during transformation: {e}")
-        return df
+        return pd.DataFrame()
